@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tron dApp - WalletConnect v2</title>
-    <script src="https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js"></script>
+    <!-- ИСПРАВЛЕННАЯ CDN ССЫЛКА -->
+    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js"></script>
     <style>
         * { 
             margin: 0; 
@@ -374,6 +375,15 @@
             }
         };
 
+        // Проверка загрузки библиотеки
+        function checkLibrary() {
+            if (typeof WalletConnectUniversalProvider === 'undefined') {
+                showError('Библиотека WalletConnect не загрузилась. Пожалуйста, отключите AdBlock и обновите страницу.');
+                return false;
+            }
+            return true;
+        }
+
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', async function() {
             connectBtn.addEventListener('click', connectWallet);
@@ -386,6 +396,8 @@
 
         // Инициализация провайдера
         async function initializeProvider() {
+            if (!checkLibrary()) return false;
+
             try {
                 showLoading(true);
                 hideError();
