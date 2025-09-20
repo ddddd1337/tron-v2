@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tron dApp</title>
+    <script src="https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; color: white; padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { font-size: 2em; margin-bottom: 10px; }
+        button { 
+            background: #3375bb; color: white; border: none; 
+            padding: 15px 30px; border-radius: 8px; font-size: 16px;
+            margin: 10px; width: 100%; cursor: pointer;
+        }
+        .wallet-info { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .hidden { display: none; }
+        .modal { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+            justify-content: center; z-index: 1000; padding: 20px;
+        }
+        .modal-content { 
+            background: white; padding: 20px; border-radius: 12px; 
+            text-align: center; color: #333; width: 100%;
+        }
+        .wallet-buttons { display: grid; gap: 10px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 Tron dApp</h1>
+            <p>Подключите ваш кошелек</p>
+        </header>
+        
+        <button id="connect-btn">Connect Wallet</button>
+        
+        <div id="wallet-info" class="hidden wallet-info">
+            <h3>Подключенный кошелек</h3>
+            <p id="account-address"></p>
+            <p id="account-balance"></p>
+            <button id="disconnect-btn">Disconnect</button>
+        </div>
+
+        <div id="qr-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Выберите кошелек</h3>
+                <div id="qr-code"></div>
+                <div class="wallet-buttons">
+                    <button onclick="openWallet('trust')">Trust Wallet</button>
+                    <button onclick="openWallet('fox')">FoxWallet</button>
+                    <button onclick="openWallet('gate')">GateWallet</button>
+                    <button onclick="openWallet('exodus')">Exodus</button>
+                </div>
+                <button onclick="hideModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let provider = null;
+        let session = null;
+        let currentUri = null;
+
+        document.getElementById('connect-btn').addEventListener('click', connectWallet);
+        document.getElementById('disconnect-btn').addEventListener('click', disconnectWallet);
+
+        async function connectWallet() {
+            try {
+                provider = await WalletConnectUniversalProvider.init({
+                    projectId: '555f0af265ac5f6ef43b3b567ee8a379',
+                    relayUrl: 'wss://relay.walletconnect.com',
+                    metadata: {
+                        name: 'Tron dApp',
+                        description: 'Tron dApp with WalletConnect',
+                        url: window.location.origin,
+                        icons: ['https://avatars.githubusercontent.com/u/37784886']
+                    }
+                });
+
+                const { uri, approval } = await provider.connect({
+                    namespaces: {
+                        tron: {
+                            methods: ['tron_signTransaction', 'tron_sendTransaction', 'tron_getBalance'],
+                            chains: ['tron:0x2b6653dc'],
+                            events: ['chainChanged', 'accountsChanged']
+                        }
+                    }
+                });
+
+                if (uri) {
+                    currentUri = uri;
+                    showQRCode(uri);
+                    showModal();
+                }
+
+                session = await approval();
+                updateUI(true);
+                hideModal();
+                
+            } catch (error) {
+                alert('Ошибка подключения: ' + error.message);
+            }
+        }
+
+        function showQRCode(uri) {
+            document.getElementById('qr-code').innerHTML = `
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(uri)}" 
+                     alt="QR Code" style="margin: 10px 0; border-radius: 8px;" />
+            `;
+        }
+
+        function showModal() {
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
+
+        function hideModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        function openWallet(type) {
+            const deepLinks = {
+                trust: `trust://wc?uri=${encodeURIComponent(currentUri)}`,
+                fox: `foxwallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                gate: `gatewallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                exodus: `exodus://wc?uri=${encodeURIComponent(currentUri)}`
+            };
+            if (deepLinks[type]) {
+                window.open(deepLinks[type], '_blank');
+            }
+        }
+
+        async function disconnectWallet() {
+            if (provider && session) {
+                await provider.disconnect({
+                    topic: session.topic,
+                    reason: { code: 6000, message: 'User disconnected' }
+                });
+            }
+            updateUI(false);
+        }
+
+        async function updateUI(connected) {
+            const connectBtn = document.getElementById('connect-btn');
+            const walletInfo = document.getElementById('wallet-info');
+            const accountAddress = document.getElementById('account-address');
+            
+            if (connected) {
+                connectBtn.style.display = 'none';
+                walletInfo.classList.remove('hidden');
+                
+                const accounts = await provider.request({
+                    topic: session.topic,
+                    chainId: 'tron:0x2b6653dc',
+                    request: { method: 'tron_requestAccounts', params: [] }
+                });
+                
+                const address = Array.isArray(accounts) ? accounts[0] : accounts;
+                accountAddress.textContent = `Адрес: ${address.slice(0, 8)}...${address.slice(-6)}`;
+                
+            } else {
+                connectBtn.style.display = 'block';
+                walletInfo.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
