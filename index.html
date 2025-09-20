@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tron dApp - WalletConnect v2</title>
-    <!-- Локальная версия библиотеки -->
-    <script src="https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js"></script>
     <style>
         * { 
             margin: 0; 
@@ -19,120 +17,83 @@
             min-height: 100vh; 
             color: #333;
             padding: 20px;
-            line-height: 1.6;
         }
         
         .container {
-            max-width: 600px;
+            max-width: 500px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
-        }
-        
-        header {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             text-align: center;
-            margin-bottom: 30px;
         }
         
         h1 {
             color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 2.5em;
-            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 2em;
         }
         
         .description {
             color: #7f8c8d;
-            font-size: 1.1em;
-            margin-bottom: 10px;
-        }
-        
-        .wallet-section {
-            text-align: center;
-            margin: 40px 0;
+            margin-bottom: 30px;
         }
         
         .connect-button {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: #3498db;
             color: white;
             border: none;
-            padding: 18px 36px;
+            padding: 15px 30px;
             font-size: 18px;
-            font-weight: 600;
-            border-radius: 15px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            margin: 10px 0;
             width: 100%;
-            max-width: 320px;
-            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.3);
+            max-width: 250px;
         }
         
         .connect-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+            background: #2980b9;
         }
         
         .connect-button:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
         
         .wallet-info {
             background: #f8f9fa;
-            padding: 25px;
-            border-radius: 15px;
-            margin: 25px 0;
-            text-align: center;
-            border: 2px solid #e9ecef;
-        }
-        
-        .wallet-info.hidden {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
             display: none;
-        }
-        
-        .account-info {
-            margin: 15px 0;
         }
         
         .account-address {
             font-family: 'Courier New', monospace;
             background: #e9ecef;
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 5px;
             margin: 10px 0;
             word-break: break-all;
-            font-size: 14px;
         }
         
         .balance {
-            font-size: 1.4em;
+            font-size: 1.2em;
             font-weight: bold;
             color: #27ae60;
-            margin: 15px 0;
-            padding: 10px;
-            background: rgba(39, 174, 96, 0.1);
-            border-radius: 10px;
+            margin: 10px 0;
         }
         
         .disconnect-button {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: #e74c3c;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
+            padding: 10px 20px;
+            border-radius: 5px;
             cursor: pointer;
-            margin-top: 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .disconnect-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+            margin-top: 10px;
         }
         
         .modal {
@@ -141,181 +102,91 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
+            background: rgba(0,0,0,0.8);
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             padding: 20px;
-            backdrop-filter: blur(5px);
-        }
-        
-        .modal.hidden {
-            display: none;
         }
         
         .modal-content {
             background: white;
-            padding: 35px;
-            border-radius: 20px;
+            padding: 30px;
+            border-radius: 15px;
             text-align: center;
             width: 100%;
-            max-width: 450px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
-            position: relative;
-        }
-        
-        .close-button {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: #7f8c8d;
-            transition: color 0.3s ease;
-        }
-        
-        .close-button:hover {
-            color: #2c3e50;
+            max-width: 350px;
         }
         
         .qr-code {
-            margin: 25px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 12px;
+            margin: 20px 0;
         }
         
         .wallet-buttons {
             display: grid;
-            gap: 12px;
-            margin: 25px 0;
+            gap: 10px;
+            margin: 15px 0;
         }
         
         .wallet-button {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: #3498db;
             color: white;
             border: none;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 12px;
+            border-radius: 6px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
         }
         
-        .wallet-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        .error {
+            background: #ffe6e6;
+            color: #c0392b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #ff6b6b;
+            display: none;
         }
         
         .loading {
             display: inline-block;
-            width: 22px;
-            height: 22px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top: 3px solid white;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 12px;
+            margin-right: 10px;
         }
         
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        .error {
-            background: #ffeaea;
-            color: #c0392b;
-            padding: 16px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border: 2px solid #ff6b6b;
-            text-align: center;
-        }
-        
-        .error.hidden {
-            display: none;
-        }
-        
-        footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #7f8c8d;
-            font-size: 0.95em;
-        }
-        
-        .network-info {
-            background: rgba(52, 152, 219, 0.1);
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            color: #3498db;
-            font-weight: 500;
-        }
-
-        /* Мобильная адаптация */
-        @media (max-width: 768px) {
-            .container {
-                padding: 25px 20px;
-                margin: 15px;
-                border-radius: 18px;
-            }
-            
-            h1 {
-                font-size: 2em;
-            }
-            
-            .connect-button {
-                padding: 16px 28px;
-                font-size: 16px;
-                max-width: 280px;
-            }
-            
-            .modal-content {
-                padding: 25px 20px;
-                margin: 15px;
-            }
-            
-            .wallet-info {
-                padding: 20px 15px;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🔄 Tron dApp</h1>
-            <p class="description">Децентрализованное приложение на сети Tron</p>
-            <div class="network-info">Сеть: Tron Mainnet (0x2b6653dc)</div>
-        </header>
+        <h1>🔄 Tron dApp</h1>
+        <p class="description">Подключите кошелек для работы с Tron</p>
         
-        <div class="wallet-section">
-            <button id="connect-btn" class="connect-button">
-                Подключить кошелек
+        <button id="connect-btn" class="connect-button">
+            Подключить кошелек
+        </button>
+        
+        <div id="error-message" class="error"></div>
+        
+        <div id="wallet-info" class="wallet-info">
+            <h3>✅ Кошелек подключен</h3>
+            <div class="account-address" id="account-address"></div>
+            <div class="balance" id="account-balance"></div>
+            <button id="disconnect-btn" class="disconnect-button">
+                Отключить кошелек
             </button>
-            
-            <div id="error-message" class="error hidden"></div>
-            
-            <div id="wallet-info" class="wallet-info hidden">
-                <h3>✅ Кошелек подключен</h3>
-                <div class="account-info">
-                    <p>Адрес:</p>
-                    <div class="account-address" id="account-address"></div>
-                </div>
-                <div class="balance" id="account-balance"></div>
-                <button id="disconnect-btn" class="disconnect-button">
-                    Отключить кошелек
-                </button>
-            </div>
         </div>
 
-        <div id="qr-modal" class="modal hidden">
+        <div id="qr-modal" class="modal">
             <div class="modal-content">
-                <button class="close-button" onclick="hideModal()">×</button>
                 <h3>Выберите кошелек</h3>
                 <p>Отсканируйте QR-код или откройте в приложении</p>
                 
@@ -323,38 +194,33 @@
                 
                 <div class="wallet-buttons">
                     <button class="wallet-button" onclick="openWallet('trust')">
-                        🛡️ Trust Wallet
+                        Trust Wallet
                     </button>
                     <button class="wallet-button" onclick="openWallet('fox')">
-                        🦊 FoxWallet
+                        FoxWallet
                     </button>
                     <button class="wallet-button" onclick="openWallet('gate')">
-                        🚪 GateWallet
+                        GateWallet
                     </button>
                     <button class="wallet-button" onclick="openWallet('exodus')">
-                        📱 Exodus
+                        Exodus
                     </button>
                 </div>
                 
-                <p style="color: #7f8c8d; font-size: 14px; margin-top: 15px;">
-                    Установите приложение кошелька для подключения
-                </p>
+                <button onclick="hideModal()" style="margin-top: 15px; padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Закрыть
+                </button>
             </div>
         </div>
-        
-        <footer>
-            <p>Powered by Tron Network & WalletConnect v2</p>
-            <p>Project ID: 555f0af265ac5f6ef43b3b567ee8a379</p>
-        </footer>
     </div>
 
     <script>
-        // Глобальные переменные
+        // Простые переменные для хранения данных
         let provider = null;
         let session = null;
         let currentUri = null;
 
-        // Элементы DOM
+        // Элементы страницы
         const connectBtn = document.getElementById('connect-btn');
         const disconnectBtn = document.getElementById('disconnect-btn');
         const walletInfo = document.getElementById('wallet-info');
@@ -363,172 +229,69 @@
         const accountAddress = document.getElementById('account-address');
         const accountBalance = document.getElementById('account-balance');
 
-        // Конфигурация WalletConnect
-        const WALLETCONNECT_CONFIG = {
+        // Настройки для WalletConnect
+        const config = {
             projectId: '555f0af265ac5f6ef43b3b567ee8a379',
             relayUrl: 'wss://relay.walletconnect.com',
             metadata: {
                 name: 'Tron dApp',
-                description: 'Децентрализованное приложение на сети Tron',
-                url: window.location.origin,
+                description: 'Простое приложение для Tron',
+                url: window.location.href,
                 icons: ['https://avatars.githubusercontent.com/u/37784886']
             }
         };
 
-        // Проверка загрузки библиотеки с несколькими fallback
-        function checkLibrary() {
-            if (typeof WalletConnectUniversalProvider !== 'undefined') {
-                return true;
-            }
-
-            // Пробуем альтернативные глобальные переменные
-            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
-                return true;
-            }
-
-            showError('Библиотека не загрузилась. Попробуйте: 1) Отключить AdBlock 2) Обновить страницу 3) Использовать другой браузер');
-            return false;
-        }
-
-        // Альтернативная инициализация если CDN не работает
-        async function loadWalletConnectFallback() {
-            try {
-                // Пробуем динамически загрузить
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js';
-                script.onload = () => {
-                    if (typeof WalletConnectUniversalProvider !== 'undefined') {
-                        initializeProvider();
-                    }
-                };
-                document.head.appendChild(script);
-            } catch (error) {
-                showError('Не удалось загрузить библиотеку. Пожалуйста, попробуйте позже.');
-            }
-        }
-
-        // Инициализация при загрузке
-        document.addEventListener('DOMContentLoaded', async function() {
+        // При загрузке страницы
+        window.addEventListener('load', function() {
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
             
-            if (checkLibrary()) {
-                await initializeProvider();
-                await checkExistingSessions();
-            } else {
-                await loadWalletConnectFallback();
-            }
+            // Проверяем, есть ли сохраненная сессия
+            checkSavedSession();
         });
 
-        // Инициализация провайдера
-        async function initializeProvider() {
-            if (!checkLibrary()) return false;
-
-            try {
-                showLoading(true);
-                hideError();
-
-                provider = await WalletConnectUniversalProvider.init(WALLETCONNECT_CONFIG);
-                
-                // Настройка обработчиков событий
-                setupEventListeners();
-                
-                console.log('Provider initialized successfully');
-                return true;
-                
-            } catch (error) {
-                showError('Ошибка инициализации: ' + error.message);
-                console.error('Provider initialization failed:', error);
-                return false;
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Проверка существующих сессий
-        async function checkExistingSessions() {
-            if (!provider) return false;
-
-            try {
-                const sessions = provider.client.session.getAll();
-                console.log('Found sessions:', sessions.length);
-                
-                if (sessions.length > 0) {
-                    session = sessions[0];
-                    await updateSessionInfo();
-                    updateUI(true);
-                    return true;
-                }
-                
-                return false;
-                
-            } catch (error) {
-                console.error('Session check failed:', error);
-                return false;
-            }
-        }
-
-        // Настройка обработчиков событий
-        function setupEventListeners() {
-            if (!provider) return;
-
-            provider.on('session_delete', (event) => {
-                console.log('Session deleted:', event);
-                handleSessionDisconnected();
-            });
-
-            provider.on('session_update', (event) => {
-                console.log('Session updated:', event);
-            });
-
-            provider.on('session_event', (event) => {
-                console.log('Session event:', event);
-            });
-        }
-
-        // Подключение кошелька
+        // Подключение кошелька - ОСНОВНАЯ ФУНКЦИЯ
         async function connectWallet() {
-            if (!provider) {
-                const initialized = await initializeProvider();
-                if (!initialized) return;
-            }
-
             try {
                 showLoading(true);
                 hideError();
-
+                
+                // Загружаем библиотеку динамически
+                await loadWalletConnectLibrary();
+                
+                // Создаем провайдер
+                provider = await WalletConnectUniversalProvider.init(config);
+                
+                // Подключаемся
                 const { uri, approval } = await provider.connect({
                     namespaces: {
                         tron: {
-                            methods: [
-                                'tron_signTransaction',
-                                'tron_signMessage',
-                                'tron_sendTransaction',
-                                'tron_getBalance',
-                                'tron_getAccount'
-                            ],
+                            methods: ['tron_signTransaction', 'tron_sendTransaction', 'tron_getBalance'],
                             chains: ['tron:0x2b6653dc'],
                             events: ['chainChanged', 'accountsChanged']
                         }
                     }
                 });
 
+                // Показываем QR-код
                 if (uri) {
                     currentUri = uri;
                     showQRCode(uri);
                     showModal();
                 }
 
+                // Ждем подтверждения
                 session = await approval();
-                console.log('Session approved:', session);
                 
-                await updateSessionInfo();
+                // Сохраняем сессию
+                saveSession();
+                
+                // Обновляем интерфейс
                 updateUI(true);
                 hideModal();
                 
             } catch (error) {
-                showError('Ошибка подключения: ' + error.message);
-                console.error('Connection failed:', error);
+                showError('Ошибка: ' + error.message);
             } finally {
                 showLoading(false);
             }
@@ -536,133 +299,126 @@
 
         // Отключение кошелька
         async function disconnectWallet() {
-            if (!provider || !session) return;
-
-            try {
-                await provider.disconnect({
-                    topic: session.topic,
-                    reason: { 
-                        code: 6000, 
-                        message: 'User disconnected' 
-                    }
-                });
-                
-            } catch (error) {
-                console.error('Disconnect error:', error);
-            } finally {
-                handleSessionDisconnected();
+            if (provider && session) {
+                try {
+                    await provider.disconnect({
+                        topic: session.topic,
+                        reason: { code: 6000, message: 'User disconnected' }
+                    });
+                } catch (error) {
+                    console.log('Ошибка при отключении:', error);
+                }
             }
-        }
-
-        // Обработчик отключения сессии
-        function handleSessionDisconnected() {
-            session = null;
-            currentUri = null;
+            clearSession();
             updateUI(false);
-            console.log('Session disconnected');
         }
 
-        // Обновление информации о сессии
-        async function updateSessionInfo() {
-            if (!provider || !session) return;
-
-            try {
-                const accounts = await provider.request({
-                    topic: session.topic,
-                    chainId: 'tron:0x2b6653dc',
-                    request: {
-                        method: 'tron_requestAccounts',
-                        params: []
-                    }
-                });
-
-                const address = Array.isArray(accounts) ? accounts[0] : accounts;
-                accountAddress.textContent = address;
-
-                const balance = await provider.request({
-                    topic: session.topic,
-                    chainId: 'tron:0x2b6653dc',
-                    request: {
-                        method: 'tron_getBalance',
-                        params: [address]
-                    }
-                });
-
-                accountBalance.textContent = `${(balance / 1000000).toFixed(6)} TRX`;
+        // Динамическая загрузка библиотеки
+        function loadWalletConnectLibrary() {
+            return new Promise((resolve, reject) => {
+                if (typeof WalletConnectUniversalProvider !== 'undefined') {
+                    resolve();
+                    return;
+                }
                 
-            } catch (error) {
-                console.error('Session info update failed:', error);
-            }
+                // Пробуем загрузить библиотеку
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Не удалось загрузить библиотеку'));
+                document.head.appendChild(script);
+            });
         }
 
         // Показать QR-код
         function showQRCode(uri) {
             const qrCodeElement = document.getElementById('qr-code');
             qrCodeElement.innerHTML = `
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}" 
-                     alt="QR Code" style="border-radius: 10px; max-width: 200px;" />
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(uri)}" 
+                     alt="QR Code" style="border-radius: 8px;" />
             `;
         }
 
-        // Показать модальное окно
-        function showModal() {
-            qrModal.classList.remove('hidden');
-        }
-
-        // Скрыть модальное окно
-        function hideModal() {
-            qrModal.classList.add('hidden');
-        }
-
-        // Открыть кошелек по deep link
+        // Открыть кошелек
         function openWallet(type) {
             if (!currentUri) return;
-
-            const deepLinks = {
+            
+            const links = {
                 trust: `trust://wc?uri=${encodeURIComponent(currentUri)}`,
                 fox: `foxwallet://wc?uri=${encodeURIComponent(currentUri)}`,
                 gate: `gatewallet://wc?uri=${encodeURIComponent(currentUri)}`,
                 exodus: `exodus://wc?uri=${encodeURIComponent(currentUri)}`
             };
-
-            if (deepLinks[type]) {
-                window.open(deepLinks[type], '_blank');
+            
+            if (links[type]) {
+                window.open(links[type], '_blank');
             }
         }
 
-        // Обновление интерфейса
+        // Показать/скрыть модальное окно
+        function showModal() {
+            qrModal.style.display = 'flex';
+        }
+
+        function hideModal() {
+            qrModal.style.display = 'none';
+        }
+
+        // Обновить интерфейс
         function updateUI(connected) {
             if (connected) {
                 connectBtn.style.display = 'none';
-                walletInfo.classList.remove('hidden');
+                walletInfo.style.display = 'block';
+                // Здесь можно добавить получение баланса и адреса
+                accountAddress.textContent = 'Адрес: подключен';
+                accountBalance.textContent = 'Баланс: загрузка...';
             } else {
                 connectBtn.style.display = 'block';
-                walletInfo.classList.add('hidden');
+                walletInfo.style.display = 'none';
                 accountAddress.textContent = '';
                 accountBalance.textContent = '';
             }
         }
 
-        // Показать загрузку
-        function showLoading(loading) {
-            if (loading) {
-                connectBtn.innerHTML = '<span class="loading"></span> Подключение...';
-                connectBtn.disabled = true;
-            } else {
-                connectBtn.innerHTML = 'Подключить кошелек';
-                connectBtn.disabled = false;
+        // Работа с сессиями
+        function saveSession() {
+            if (session) {
+                localStorage.setItem('wc_session', JSON.stringify(session));
             }
         }
 
-        // Показать ошибку
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.remove('hidden');
+        function checkSavedSession() {
+            const saved = localStorage.getItem('wc_session');
+            if (saved) {
+                try {
+                    session = JSON.parse(saved);
+                    updateUI(true);
+                } catch (error) {
+                    clearSession();
+                }
+            }
         }
 
-        // Скрыть ошибку
+        function clearSession() {
+            session = null;
+            localStorage.removeItem('wc_session');
+        }
+
+        // Вспомогательные функции
+        function showLoading(loading) {
+            connectBtn.innerHTML = loading ? 
+                '<span class="loading"></span> Подключение...' : 
+                'Подключить кошелек';
+            connectBtn.disabled = loading;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
         function hideError() {
-            errorMessage.classList.add('hidden');
+            errorMessage.style.display = 'none';
         }
     </script>
 </body>
