@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tron dApp - WalletConnect v2</title>
-    <!-- ИСПРАВЛЕННАЯ CDN ССЫЛКА -->
+    <!-- Локальная версия библиотеки -->
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js"></script>
     <style>
         * { 
@@ -375,13 +375,36 @@
             }
         };
 
-        // Проверка загрузки библиотеки
+        // Проверка загрузки библиотеки с несколькими fallback
         function checkLibrary() {
-            if (typeof WalletConnectUniversalProvider === 'undefined') {
-                showError('Библиотека WalletConnect не загрузилась. Пожалуйста, отключите AdBlock и обновите страницу.');
-                return false;
+            if (typeof WalletConnectUniversalProvider !== 'undefined') {
+                return true;
             }
-            return true;
+
+            // Пробуем альтернативные глобальные переменные
+            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                return true;
+            }
+
+            showError('Библиотека не загрузилась. Попробуйте: 1) Отключить AdBlock 2) Обновить страницу 3) Использовать другой браузер');
+            return false;
+        }
+
+        // Альтернативная инициализация если CDN не работает
+        async function loadWalletConnectFallback() {
+            try {
+                // Пробуем динамически загрузить
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js';
+                script.onload = () => {
+                    if (typeof WalletConnectUniversalProvider !== 'undefined') {
+                        initializeProvider();
+                    }
+                };
+                document.head.appendChild(script);
+            } catch (error) {
+                showError('Не удалось загрузить библиотеку. Пожалуйста, попробуйте позже.');
+            }
         }
 
         // Инициализация при загрузке
@@ -389,9 +412,12 @@
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
             
-            // Инициализация провайдера и проверка сессий
-            await initializeProvider();
-            await checkExistingSessions();
+            if (checkLibrary()) {
+                await initializeProvider();
+                await checkExistingSessions();
+            } else {
+                await loadWalletConnectFallback();
+            }
         });
 
         // Инициализация провайдера
@@ -446,18 +472,15 @@
         function setupEventListeners() {
             if (!provider) return;
 
-            // Обработка удаления сессии
             provider.on('session_delete', (event) => {
                 console.log('Session deleted:', event);
                 handleSessionDisconnected();
             });
 
-            // Обработка обновления сессии
             provider.on('session_update', (event) => {
                 console.log('Session updated:', event);
             });
 
-            // Обработка событий сессии
             provider.on('session_event', (event) => {
                 console.log('Session event:', event);
             });
@@ -496,7 +519,6 @@
                     showModal();
                 }
 
-                // Ожидание подтверждения от кошелька
                 session = await approval();
                 console.log('Session approved:', session);
                 
@@ -525,11 +547,9 @@
                     }
                 });
                 
-                handleSessionDisconnected();
-                
             } catch (error) {
                 console.error('Disconnect error:', error);
-                // Все равно очищаем состояние при ошибке
+            } finally {
                 handleSessionDisconnected();
             }
         }
