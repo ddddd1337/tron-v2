@@ -143,7 +143,7 @@
 <body>
     <div class="container">
         <h1>🔄 Tron dApp</h1>
-        <p class="description">Простое подключение кошелька</p>
+        <p class="description">Подключение через Skypack CDN</p>
         
         <button id="connect-btn" class="connect-button">
             Подключить кошелек
@@ -162,11 +162,13 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // Используем ES-модули через Skypack
+        import { UniversalProvider } from 'https://cdn.skypack.dev/@walletconnect/universal-provider@2.10.0';
+        
         // Простые переменные
         let provider = null;
         let session = null;
-        let currentUri = null;
 
         // Элементы страницы
         const connectBtn = document.getElementById('connect-btn');
@@ -193,7 +195,7 @@
         window.addEventListener('load', function() {
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
-            showSuccess('Страница загружена. Нажмите "Подключить кошелек"');
+            showSuccess('Skypack CDN загружен. Нажмите "Подключить кошелек"');
         });
 
         // Основная функция подключения
@@ -201,18 +203,13 @@
             try {
                 showLoading(true);
                 hideError();
+                showSuccess('Инициализация провайдера...');
 
-                // Пробуем несколько способов загрузки библиотеки
-                await loadWalletConnectLibrary();
+                // Инициализируем провайдер через Skypack
+                provider = await UniversalProvider.init(config);
                 
-                // Проверяем что библиотека доступна
-                if (typeof window.WalletConnectUniversalProvider === 'undefined') {
-                    throw new Error('Библиотека не загрузилась. Попробуйте обновить страницу.');
-                }
+                showSuccess('Подключаемся к кошельку...');
 
-                // Инициализируем провайдер
-                provider = await window.WalletConnectUniversalProvider.init(config);
-                
                 // Подключаемся
                 const { uri, approval } = await provider.connect({
                     namespaces: {
@@ -224,14 +221,14 @@
                     }
                 });
 
-                // Если есть URI, показываем пользователю
+                // Если есть URI, показываем QR-код
                 if (uri) {
-                    currentUri = uri;
                     showSuccess('Отсканируйте QR-код в вашем кошельке');
                     showQRCode(uri);
                 }
 
                 // Ждем подтверждения
+                showSuccess('Ожидаем подтверждения...');
                 session = await approval();
                 
                 // Обновляем интерфейс
@@ -244,46 +241,6 @@
             } finally {
                 showLoading(false);
             }
-        }
-
-        // Загрузка библиотеки несколькими способами
-        async function loadWalletConnectLibrary() {
-            // Если уже загружена
-            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
-                return true;
-            }
-
-            // Пробуем разные CDN
-            const cdns = [
-                'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js',
-                'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js',
-                'https://cdnjs.cloudflare.com/ajax/libs/@walletconnect/universal-provider/2.10.0/index.umd.min.js'
-            ];
-
-            for (const cdn of cdns) {
-                try {
-                    await loadScript(cdn);
-                    if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
-                        showSuccess('Библиотека загружена с: ' + cdn);
-                        return true;
-                    }
-                } catch (error) {
-                    console.log('Не удалось загрузить с:', cdn, error);
-                }
-            }
-            
-            throw new Error('Не удалось загрузить библиотеку ни с одного CDN');
-        }
-
-        // Загрузка скрипта
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
         }
 
         // Показать QR-код
@@ -307,17 +264,20 @@
             qrModal.innerHTML = `
                 <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
                     <h3>Отсканируйте QR-код</h3>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(uri)}" 
-                         alt="QR Code" style="border-radius: 8px; margin: 10px 0;" />
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}" 
+                         alt="QR Code" style="border-radius: 8px; margin: 15px 0; max-width: 200px;" />
                     <div style="margin: 15px 0;">
-                        <button onclick="window.open('trust://wc?uri=${encodeURIComponent(uri)}')" style="padding: 8px 12px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <button onclick="window.open('trust://wc?uri=${encodeURIComponent(uri)}')" style="padding: 10px 15px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
                             Trust Wallet
                         </button>
-                        <button onclick="window.open('foxwallet://wc?uri=${encodeURIComponent(uri)}')" style="padding: 8px 12px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <button onclick="window.open('foxwallet://wc?uri=${encodeURIComponent(uri)}')" style="padding: 10px 15px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
                             FoxWallet
                         </button>
+                        <button onclick="window.open('gatewallet://wc?uri=${encodeURIComponent(uri)}')" style="padding: 10px 15px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            GateWallet
+                        </button>
                     </div>
-                    <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <button onclick="this.parentElement.parentElement.remove()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
                         Закрыть
                     </button>
                 </div>
@@ -382,6 +342,22 @@
         function hideError() {
             errorMessage.style.display = 'none';
         }
+
+        // Глобальные функции для кнопок
+        window.openWallet = function(type) {
+            if (!currentUri) return;
+            
+            const links = {
+                trust: `trust://wc?uri=${encodeURIComponent(currentUri)}`,
+                fox: `foxwallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                gate: `gatewallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                exodus: `exodus://wc?uri=${encodeURIComponent(currentUri)}`
+            };
+            
+            if (links[type]) {
+                window.open(links[type], '_blank');
+            }
+        };
     </script>
 </body>
 </html>
