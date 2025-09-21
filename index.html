@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tron dApp - DePay WalletConnect</title>
+    <title>Tron dApp - WalletConnect</title>
     <style>
         * { 
             margin: 0; 
@@ -103,53 +103,6 @@
             background: #c0392b;
         }
         
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-        
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            width: 100%;
-            max-width: 320px;
-        }
-        
-        .qr-code {
-            margin: 15px 0;
-        }
-        
-        .wallet-buttons {
-            display: grid;
-            gap: 8px;
-            margin: 15px 0;
-        }
-        
-        .wallet-button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .wallet-button:hover {
-            background: #2980b9;
-        }
-        
         .error {
             background: #ffe6e6;
             color: #c0392b;
@@ -157,6 +110,16 @@
             border-radius: 6px;
             margin: 15px 0;
             border: 1px solid #ff6b6b;
+            display: none;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #27ae60;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #2ecc71;
             display: none;
         }
         
@@ -175,27 +138,19 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        .success {
-            color: #27ae60;
-            font-weight: bold;
-            margin: 10px 0;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔄 Tron dApp</h1>
-        <p class="description">Подключите кошелек через DePay WalletConnect</p>
+        <p class="description">Простое подключение кошелька</p>
         
         <button id="connect-btn" class="connect-button">
             Подключить кошелек
         </button>
         
         <div id="error-message" class="error"></div>
-        <div id="success-message" class="success" style="display: none;">
-            ✅ Библиотека успешно загружена!
-        </div>
+        <div id="success-message" class="success"></div>
         
         <div id="wallet-info" class="wallet-info">
             <h3>✅ Кошелек подключен</h3>
@@ -205,185 +160,196 @@
                 Отключить кошелек
             </button>
         </div>
-
-        <div id="qr-modal" class="modal">
-            <div class="modal-content">
-                <h3>Выберите кошелек</h3>
-                <p>Отсканируйте QR-код или откройте в приложении</p>
-                
-                <div class="qr-code" id="qr-code"></div>
-                
-                <div class="wallet-buttons">
-                    <button class="wallet-button" onclick="openWallet('trust')">
-                        Trust Wallet
-                    </button>
-                    <button class="wallet-button" onclick="openWallet('fox')">
-                        FoxWallet
-                    </button>
-                    <button class="wallet-button" onclick="openWallet('gate')">
-                        GateWallet
-                    </button>
-                    <button class="wallet-button" onclick="openWallet('exodus')">
-                        Exodus
-                    </button>
-                </div>
-                
-                <button onclick="hideModal()" style="margin-top: 15px; padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Закрыть
-                </button>
-            </div>
-        </div>
     </div>
 
     <script>
-        // Переменные
-        let walletConnect = null;
+        // Простые переменные
+        let provider = null;
+        let session = null;
         let currentUri = null;
-        let connected = false;
 
         // Элементы страницы
         const connectBtn = document.getElementById('connect-btn');
         const disconnectBtn = document.getElementById('disconnect-btn');
         const walletInfo = document.getElementById('wallet-info');
-        const qrModal = document.getElementById('qr-modal');
         const errorMessage = document.getElementById('error-message');
         const successMessage = document.getElementById('success-message');
         const accountAddress = document.getElementById('account-address');
         const accountBalance = document.getElementById('account-balance');
 
-        // Конфигурация
+        // Настройки
         const config = {
             projectId: '555f0af265ac5f6ef43b3b567ee8a379',
+            relayUrl: 'wss://relay.walletconnect.com',
             metadata: {
                 name: 'Tron dApp',
-                description: 'Децентрализованное приложение на Tron',
-                url: window.location.origin,
+                description: 'Простое приложение для Tron',
+                url: window.location.href,
                 icons: ['https://avatars.githubusercontent.com/u/37784886']
             }
         };
 
         // При загрузке страницы
-        window.addEventListener('load', async function() {
+        window.addEventListener('load', function() {
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
-            
-            // Пытаемся загрузить библиотеку
-            try {
-                await loadDePayLibrary();
-                showSuccess('Библиотека DePay WalletConnect загружена!');
-            } catch (error) {
-                showError('Не удалось загрузить библиотеку: ' + error.message);
-            }
+            showSuccess('Страница загружена. Нажмите "Подключить кошелек"');
         });
 
-        // Загрузка библиотеки DePay WalletConnect
-        async function loadDePayLibrary() {
-            return new Promise((resolve, reject) => {
-                if (typeof window.DepayWalletConnectV2 !== 'undefined') {
-                    resolve();
-                    return;
-                }
-
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@depay/walletconnect-v2@latest/dist/umd/index.min.js';
-                script.onload = () => {
-                    // Даем время на инициализацию
-                    setTimeout(() => {
-                        if (typeof window.DepayWalletConnectV2 !== 'undefined') {
-                            resolve();
-                        } else {
-                            reject(new Error('Библиотека не инициализировалась'));
-                        }
-                    }, 100);
-                };
-                script.onerror = () => reject(new Error('Ошибка загрузки скрипта'));
-                document.head.appendChild(script);
-            });
-        }
-
-        // Подключение кошелька
+        // Основная функция подключения
         async function connectWallet() {
             try {
                 showLoading(true);
                 hideError();
 
-                // Создаем экземпляр WalletConnect
-                walletConnect = new window.DepayWalletConnectV2.WalletConnect(config);
+                // Пробуем несколько способов загрузки библиотеки
+                await loadWalletConnectLibrary();
+                
+                // Проверяем что библиотека доступна
+                if (typeof window.WalletConnectUniversalProvider === 'undefined') {
+                    throw new Error('Библиотека не загрузилась. Попробуйте обновить страницу.');
+                }
+
+                // Инициализируем провайдер
+                provider = await window.WalletConnectUniversalProvider.init(config);
                 
                 // Подключаемся
-                await walletConnect.connect();
+                const { uri, approval } = await provider.connect({
+                    namespaces: {
+                        tron: {
+                            methods: ['tron_signTransaction', 'tron_sendTransaction', 'tron_getBalance'],
+                            chains: ['tron:0x2b6653dc'],
+                            events: ['chainChanged', 'accountsChanged']
+                        }
+                    }
+                });
+
+                // Если есть URI, показываем пользователю
+                if (uri) {
+                    currentUri = uri;
+                    showSuccess('Отсканируйте QR-код в вашем кошельке');
+                    showQRCode(uri);
+                }
+
+                // Ждем подтверждения
+                session = await approval();
                 
-                // Получаем аккаунты
-                const accounts = await walletConnect.getAccounts();
-                
-                // Обновляем UI
+                // Обновляем интерфейс
                 updateUI(true);
                 showSuccess('Кошелек успешно подключен!');
                 
             } catch (error) {
-                showError('Ошибка подключения: ' + error.message);
+                showError('Ошибка: ' + (error.message || 'Неизвестная ошибка'));
                 console.error('Connection error:', error);
             } finally {
                 showLoading(false);
             }
         }
 
+        // Загрузка библиотеки несколькими способами
+        async function loadWalletConnectLibrary() {
+            // Если уже загружена
+            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                return true;
+            }
+
+            // Пробуем разные CDN
+            const cdns = [
+                'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js',
+                'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/@walletconnect/universal-provider/2.10.0/index.umd.min.js'
+            ];
+
+            for (const cdn of cdns) {
+                try {
+                    await loadScript(cdn);
+                    if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                        showSuccess('Библиотека загружена с: ' + cdn);
+                        return true;
+                    }
+                } catch (error) {
+                    console.log('Не удалось загрузить с:', cdn, error);
+                }
+            }
+            
+            throw new Error('Не удалось загрузить библиотеку ни с одного CDN');
+        }
+
+        // Загрузка скрипта
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Показать QR-код
+        function showQRCode(uri) {
+            // Создаем временное модальное окно для QR-кода
+            const qrModal = document.createElement('div');
+            qrModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+            `;
+            
+            qrModal.innerHTML = `
+                <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                    <h3>Отсканируйте QR-код</h3>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(uri)}" 
+                         alt="QR Code" style="border-radius: 8px; margin: 10px 0;" />
+                    <div style="margin: 15px 0;">
+                        <button onclick="window.open('trust://wc?uri=${encodeURIComponent(uri)}')" style="padding: 8px 12px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Trust Wallet
+                        </button>
+                        <button onclick="window.open('foxwallet://wc?uri=${encodeURIComponent(uri)}')" style="padding: 8px 12px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            FoxWallet
+                        </button>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Закрыть
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(qrModal);
+        }
+
         // Отключение кошелька
         async function disconnectWallet() {
-            if (walletConnect) {
+            if (provider && session) {
                 try {
-                    await walletConnect.disconnect();
+                    await provider.disconnect({
+                        topic: session.topic,
+                        reason: { code: 6000, message: 'User disconnected' }
+                    });
                 } catch (error) {
                     console.log('Ошибка при отключении:', error);
                 }
             }
-            walletConnect = null;
-            connected = false;
+            provider = null;
+            session = null;
             updateUI(false);
-        }
-
-        // Показать QR-код (если понадобится)
-        function showQRCode(uri) {
-            const qrCodeElement = document.getElementById('qr-code');
-            qrCodeElement.innerHTML = `
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(uri)}" 
-                     alt="QR Code" style="border-radius: 8px; max-width: 150px;" />
-            `;
-        }
-
-        // Открыть кошелек
-        function openWallet(type) {
-            if (!currentUri) return;
-            
-            const links = {
-                trust: `trust://wc?uri=${encodeURIComponent(currentUri)}`,
-                fox: `foxwallet://wc?uri=${encodeURIComponent(currentUri)}`,
-                gate: `gatewallet://wc?uri=${encodeURIComponent(currentUri)}`,
-                exodus: `exodus://wc?uri=${encodeURIComponent(currentUri)}`
-            };
-            
-            if (links[type]) {
-                window.open(links[type], '_blank');
-            }
-        }
-
-        // Показать/скрыть модальное окно
-        function showModal() {
-            qrModal.style.display = 'flex';
-        }
-
-        function hideModal() {
-            qrModal.style.display = 'none';
+            showSuccess('Кошелек отключен');
         }
 
         // Обновить интерфейс
-        function updateUI(isConnected) {
-            connected = isConnected;
-            
-            if (isConnected) {
+        function updateUI(connected) {
+            if (connected) {
                 connectBtn.style.display = 'none';
                 walletInfo.style.display = 'block';
-                accountAddress.textContent = 'Адрес: подключен (DePay WC)';
+                accountAddress.textContent = 'Адрес: подключен к Tron сети';
                 accountBalance.textContent = 'Баланс: используйте кошелек для просмотра';
             } else {
                 connectBtn.style.display = 'block';
