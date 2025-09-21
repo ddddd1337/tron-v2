@@ -245,9 +245,6 @@
         window.addEventListener('load', function() {
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
-            
-            // Проверяем, есть ли сохраненная сессия
-            checkSavedSession();
         });
 
         // Подключение кошелька - ОСНОВНАЯ ФУНКЦИЯ
@@ -256,11 +253,16 @@
                 showLoading(true);
                 hideError();
                 
-                // Загружаем библиотеку динамически
+                // Загружаем библиотеку динамически (ИСПРАВЛЕННЫЙ СПОСОБ)
                 await loadWalletConnectLibrary();
                 
-                // Создаем провайдер
-                provider = await WalletConnectUniversalProvider.init(config);
+                // Проверяем что библиотека загрузилась (по совету из issue)
+                if (typeof window.WalletConnectUniversalProvider === 'undefined') {
+                    throw new Error('Библиотека не загрузилась. Попробуйте обновить страницу.');
+                }
+                
+                // Используем window. как советуют в issue #2293
+                provider = await window.WalletConnectUniversalProvider.init(config);
                 
                 // Подключаемся
                 const { uri, approval } = await provider.connect({
@@ -283,18 +285,64 @@
                 // Ждем подтверждения
                 session = await approval();
                 
-                // Сохраняем сессию
-                saveSession();
-                
                 // Обновляем интерфейс
                 updateUI(true);
                 hideModal();
                 
             } catch (error) {
                 showError('Ошибка: ' + error.message);
+                console.error('Connection error:', error);
             } finally {
                 showLoading(false);
             }
+        }
+
+        // Динамическая загрузка библиотеки (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+        function loadWalletConnectLibrary() {
+            return new Promise((resolve, reject) => {
+                // Проверяем через window. как советуют в issue
+                if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                // Пробуем несколько CDN источников
+                const cdnSources = [
+                    'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js',
+                    'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/@walletconnect/universal-provider/2.10.0/index.umd.min.js'
+                ];
+                
+                let currentSource = 0;
+                
+                function tryLoadNext() {
+                    if (currentSource >= cdnSources.length) {
+                        reject(new Error('Все CDN источники недоступны'));
+                        return;
+                    }
+                    
+                    const script = document.createElement('script');
+                    script.src = cdnSources[currentSource];
+                    script.onload = () => {
+                        // Дополнительная проверка после загрузки
+                        setTimeout(() => {
+                            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                                resolve();
+                            } else {
+                                currentSource++;
+                                tryLoadNext();
+                            }
+                        }, 100);
+                    };
+                    script.onerror = () => {
+                        currentSource++;
+                        tryLoadNext();
+                    };
+                    document.head.appendChild(script);
+                }
+                
+                tryLoadNext();
+            });
         }
 
         // Отключение кошелька
@@ -309,25 +357,9 @@
                     console.log('Ошибка при отключении:', error);
                 }
             }
-            clearSession();
+            provider = null;
+            session = null;
             updateUI(false);
-        }
-
-        // Динамическая загрузка библиотеки
-        function loadWalletConnectLibrary() {
-            return new Promise((resolve, reject) => {
-                if (typeof WalletConnectUniversalProvider !== 'undefined') {
-                    resolve();
-                    return;
-                }
-                
-                // Пробуем загрузить библиотеку
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js';
-                script.onload = resolve;
-                script.onerror = () => reject(new Error('Не удалось загрузить библиотеку'));
-                document.head.appendChild(script);
-            });
         }
 
         // Показать QR-код
@@ -369,7 +401,6 @@
             if (connected) {
                 connectBtn.style.display = 'none';
                 walletInfo.style.display = 'block';
-                // Здесь можно добавить получение баланса и адреса
                 accountAddress.textContent = 'Адрес: подключен';
                 accountBalance.textContent = 'Баланс: загрузка...';
             } else {
@@ -378,30 +409,6 @@
                 accountAddress.textContent = '';
                 accountBalance.textContent = '';
             }
-        }
-
-        // Работа с сессиями
-        function saveSession() {
-            if (session) {
-                localStorage.setItem('wc_session', JSON.stringify(session));
-            }
-        }
-
-        function checkSavedSession() {
-            const saved = localStorage.getItem('wc_session');
-            if (saved) {
-                try {
-                    session = JSON.parse(saved);
-                    updateUI(true);
-                } catch (error) {
-                    clearSession();
-                }
-            }
-        }
-
-        function clearSession() {
-            session = null;
-            localStorage.removeItem('wc_session');
         }
 
         // Вспомогательные функции
