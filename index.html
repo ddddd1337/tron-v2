@@ -3,15 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tron dApp - WalletConnect + Skypack</title>
+    <title>Tron dApp - WalletConnect</title>
     <style>
-        /* ... (ваши стили остаются без изменений) ... */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; 
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        
+        .connect-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 250px;
+            transition: background 0.3s;
+        }
+        
+        .connect-button:hover {
+            background: #2980b9;
+        }
+        
+        .connect-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .wallet-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .account-address {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-size: 14px;
+        }
+        
+        .balance {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 10px 0;
+        }
+        
+        .disconnect-button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        
+        .disconnect-button:hover {
+            background: #c0392b;
+        }
+        
+        .error {
+            background: #ffe6e6;
+            color: #c0392b;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #ff6b6b;
+            display: none;
+        }
+        
+        .success {
+            background: #e8f5e8;
+            color: #27ae60;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #2ecc71;
+            display: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔄 Tron dApp</h1>
-        <p class="description">Подключение через Skypack CDN</p>
+        <p class="description">Подключение через WalletConnect</p>
         
         <button id="connect-btn" class="connect-button">
             Подключить кошелек
@@ -30,20 +162,17 @@
         </div>
     </div>
 
-    <script type="module">
-        // Добавляем недостающую функцию isWsUrl ПЕРЕД импортом
-        function isWsUrl(url) {
-            return url.startsWith('wss://') || url.startsWith('ws://');
-        }
+    <script>
+        // Используем UMD версию - она надежнее для браузеров
+        const SCRIPT_SOURCES = [
+            'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js',
+            'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js'
+        ];
 
-        // Используем Skypack - он работал!
-        import { UniversalProvider } from 'https://cdn.skypack.dev/@walletconnect/universal-provider@2.10.0';
-        
-        // Простые переменные
         let provider = null;
         let session = null;
+        let currentUri = null;
 
-        // Элементы страницы
         const connectBtn = document.getElementById('connect-btn');
         const disconnectBtn = document.getElementById('disconnect-btn');
         const walletInfo = document.getElementById('wallet-info');
@@ -52,10 +181,9 @@
         const accountAddress = document.getElementById('account-address');
         const accountBalance = document.getElementById('account-balance');
 
-        // Настройки с FIXED relayUrl
         const config = {
             projectId: '555f0af265ac5f6ef43b3b567ee8a379',
-            relayUrl: 'wss://relay.walletconnect.org', // ← ИСПРАВИЛИ URL!
+            relayUrl: 'wss://relay.walletconnect.com',
             metadata: {
                 name: 'Tron dApp',
                 description: 'Простое приложение для Tron',
@@ -65,37 +193,48 @@
         };
 
         // При загрузке страницы
-        window.addEventListener('load', function() {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM загружен, добавляем обработчики...');
             connectBtn.addEventListener('click', connectWallet);
             disconnectBtn.addEventListener('click', disconnectWallet);
-            showSuccess('Skypack CDN загружен. Готов к подключению!');
+            showSuccess('Страница загружена. Нажмите "Подключить кошелек"');
         });
 
         // Основная функция подключения
         async function connectWallet() {
+            console.log('Нажата кнопка подключения...');
             try {
                 showLoading(true);
                 hideError();
+                showSuccess('Загрузка библиотеки...');
+
+                // Загружаем библиотеку
+                await loadWalletConnectLibrary();
+                
                 showSuccess('Инициализация провайдера...');
 
-                // Инициализируем провайдер через Skypack
-                provider = await UniversalProvider.init(config);
+                // Инициализируем провайдер
+                provider = await window.WalletConnectUniversalProvider.init(config);
+                console.log('Провайдер инициализирован:', provider);
                 
                 showSuccess('Подключаемся к кошельку...');
 
-                // Подключаемся с упрощенными настройками
+                // Подключаемся
                 const { uri, approval } = await provider.connect({
                     namespaces: {
                         tron: {
-                            methods: ['tron_signTransaction', 'tron_sendTransaction'],
+                            methods: ['tron_signTransaction', 'tron_sendTransaction', 'tron_getBalance'],
                             chains: ['tron:0x2b6653dc'],
-                            events: ['chainChanged']
+                            events: ['chainChanged', 'accountsChanged']
                         }
                     }
                 });
 
+                console.log('Получен URI:', uri);
+
                 // Если есть URI, показываем QR-код
                 if (uri) {
+                    currentUri = uri;
                     showSuccess('Отсканируйте QR-код в вашем кошельке');
                     showQRCode(uri);
                 }
@@ -103,70 +242,80 @@
                 // Ждем подтверждения
                 showSuccess('Ожидаем подтверждения...');
                 session = await approval();
+                console.log('Сессия подтверждена:', session);
                 
                 // Обновляем интерфейс
                 updateUI(true);
                 showSuccess('Кошелек успешно подключен!');
                 
             } catch (error) {
+                console.error('Ошибка подключения:', error);
                 showError('Ошибка: ' + (error.message || 'Неизвестная ошибка'));
-                console.error('Connection error:', error);
-                
-                // Fallback на UMD если Skypack не сработает
-                if (error.message.includes('isWsUrl')) {
-                    showError('Проблема с библиотекой. Пробуем альтернативный вариант...');
-                    await tryFallback();
-                }
             } finally {
                 showLoading(false);
             }
         }
 
-        // Fallback на UMD версию
-        async function tryFallback() {
-            try {
-                showSuccess('Пробуем альтернативный CDN...');
-                await loadUMDFallback();
-                
-                if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
-                    provider = await window.WalletConnectUniversalProvider.init(config);
-                    showSuccess('Альтернативный CDN сработал!');
-                }
-            } catch (fallbackError) {
-                showError('Оба варианта не сработали: ' + fallbackError.message);
+        // Загрузка библиотеки
+        async function loadWalletConnectLibrary() {
+            console.log('Загрузка библиотеки...');
+            
+            // Если уже загружена
+            if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                console.log('Библиотека уже загружена');
+                return true;
             }
-        }
 
-        // Загрузка UMD fallback
-        async function loadUMDFallback() {
-            const umdSources = [
-                'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.10.0/dist/index.umd.min.js',
-                'https://unpkg.com/@walletconnect/universal-provider@2.10.0/dist/index.umd.js'
-            ];
-
-            for (const source of umdSources) {
+            // Пробуем все источники по очереди
+            for (const source of SCRIPT_SOURCES) {
                 try {
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = source;
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
+                    console.log('Пробуем загрузить с:', source);
+                    await loadScript(source);
+                    
+                    // Даем время на инициализацию
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     
                     if (typeof window.WalletConnectUniversalProvider !== 'undefined') {
+                        console.log('Успешно загружено с:', source);
+                        showSuccess('Библиотека загружена!');
                         return true;
                     }
                 } catch (error) {
+                    console.warn('Не удалось загрузить с:', source, error);
                     continue;
                 }
             }
-            throw new Error('UMD fallback не сработал');
+            
+            throw new Error('Не удалось загрузить библиотеку WalletConnect');
+        }
+
+        // Загрузка скрипта
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    console.log('Скрипт загружен:', src);
+                    resolve();
+                };
+                script.onerror = (err) => {
+                    console.error('Ошибка загрузки скрипта:', src, err);
+                    reject(err);
+                };
+                document.head.appendChild(script);
+            });
         }
 
         // Показать QR-код
         function showQRCode(uri) {
+            console.log('Показываем QR код:', uri);
+            
+            // Удаляем старый модал если есть
+            const oldModal = document.getElementById('qr-modal');
+            if (oldModal) oldModal.remove();
+
             const qrModal = document.createElement('div');
+            qrModal.id = 'qr-modal';
             qrModal.style.cssText = `
                 position: fixed;
                 top: 0;
@@ -194,7 +343,7 @@
                             FoxWallet
                         </button>
                     </div>
-                    <button onclick="this.parentElement.parentElement.remove()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    <button onclick="document.getElementById('qr-modal').remove()" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
                         Закрыть
                     </button>
                 </div>
@@ -203,7 +352,84 @@
             document.body.appendChild(qrModal);
         }
 
-        // ... (остальные функции без изменений)
+        // Отключение кошелька
+        async function disconnectWallet() {
+            console.log('Отключение кошелька...');
+            if (provider && session) {
+                try {
+                    await provider.disconnect({
+                        topic: session.topic,
+                        reason: { code: 6000, message: 'User disconnected' }
+                    });
+                    console.log('Кошелек отключен');
+                } catch (error) {
+                    console.log('Ошибка при отключении:', error);
+                }
+            }
+            provider = null;
+            session = null;
+            updateUI(false);
+            showSuccess('Кошелек отключен');
+        }
+
+        // Обновить интерфейс
+        function updateUI(connected) {
+            console.log('Обновление UI, подключен:', connected);
+            if (connected) {
+                connectBtn.style.display = 'none';
+                walletInfo.style.display = 'block';
+                accountAddress.textContent = 'Адрес: подключен к Tron сети';
+                accountBalance.textContent = 'Баланс: используйте кошелек для просмотра';
+            } else {
+                connectBtn.style.display = 'block';
+                walletInfo.style.display = 'none';
+                accountAddress.textContent = '';
+                accountBalance.textContent = '';
+            }
+        }
+
+        // Вспомогательные функции
+        function showLoading(loading) {
+            console.log('Показать загрузку:', loading);
+            connectBtn.innerHTML = loading ? 
+                '<span class="loading"></span> Подключение...' : 
+                'Подключить кошелек';
+            connectBtn.disabled = loading;
+        }
+
+        function showError(message) {
+            console.error('Показать ошибку:', message);
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            console.log('Показать успех:', message);
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        // Глобальные функции для кнопок
+        window.openWallet = function(type) {
+            if (!currentUri) return;
+            
+            const links = {
+                trust: `trust://wc?uri=${encodeURIComponent(currentUri)}`,
+                fox: `foxwallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                gate: `gatewallet://wc?uri=${encodeURIComponent(currentUri)}`,
+                exodus: `exodus://wc?uri=${encodeURIComponent(currentUri)}`
+            };
+            
+            if (links[type]) {
+                window.open(links[type], '_blank');
+            }
+        };
     </script>
 </body>
 </html>
